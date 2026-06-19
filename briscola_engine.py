@@ -25,7 +25,7 @@ import json
 import random
 import zlib
 
-VERSION = 1
+VERSION = 2
 
 SUITS = ("D", "S", "C", "B")
 RANKS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
@@ -111,8 +111,13 @@ def new_game(seed=None):
     briscola_card = deck[-1]
     briscola_suit = card_suit(briscola_card)
 
+    # A non-secret per-game identifier. Both devices see the same game_id in the
+    # token; each device uses it to remember which player it is for this game.
+    game_id = format(rng.getrandbits(64), "016x")
+
     state = {
         "version": VERSION,
+        "game_id": game_id,
         "deck": deck,                 # index 0 = next to draw; [-1] = exposed briscola
         "briscola_suit": briscola_suit,
         "briscola_card": briscola_card,
@@ -128,12 +133,44 @@ def new_game(seed=None):
 
 
 def player_view(state, player):
-    """Return what `player` is allowed to see.
+    """Return only what `player` is allowed to see.
 
-    v0.1: full view (returns a deep copy of everything). All display MUST go
-    through this function so hidden-hand support is a drop-in change later.
+    Hidden: the opponent's hand (shown as a count) and the deck's card
+    identities (shown as a count). Visible: the viewer's own hand, the table,
+    scores, trump, and turn info — all of which are public or belong to the
+    viewer.
+
+    The turned-up briscola card is public while it is still the bottom card of
+    the draw pile; once drawn it is reported as "set by <card>" (which card
+    determined trump is public knowledge either way).
+
+    NOTE: this hides information at the *interface* level only. The token still
+    carries the full state (the opponent's device needs it to keep playing), so
+    this is display privacy under the honor system — not cryptographic secrecy.
+    True secrecy requires encrypting per-player state / mental-poker dealing,
+    which is a separate, larger step. Because all display routes through this
+    function, that upgrade does not touch game logic.
     """
-    return copy.deepcopy(state)
+    opp = _other(player)
+    bcard = state["briscola_card"]
+    briscola_in_deck = bool(state["deck"]) and state["deck"][-1] == bcard
+    return {
+        "version": state["version"],
+        "game_id": state["game_id"],
+        "you": player,
+        "briscola_suit": state["briscola_suit"],
+        "briscola_card": bcard,
+        "briscola_in_deck": briscola_in_deck,
+        "your_hand": list(state["hands"][player]),
+        "opponent_hand_count": len(state["hands"][opp]),
+        "deck_count": len(state["deck"]),
+        "table": [list(entry) for entry in state["table"]],
+        "captured_points": list(state["captured_points"]),
+        "captured_cards": list(state["captured_cards"]),
+        "turn": state["turn"],
+        "leader": state["leader"],
+        "trick_no": state["trick_no"],
+    }
 
 
 def legal_moves(state, player):

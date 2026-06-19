@@ -5,6 +5,7 @@ Run:  python -m unittest test_briscola_engine -v
 """
 
 import random
+import re
 import unittest
 
 import briscola_engine as be
@@ -158,6 +159,62 @@ class TestFullGame(unittest.TestCase):
             self.assertEqual(s["deck"], [])
             r = be.result(s)
             self.assertEqual(sum(r["points"]), 120)
+
+
+def _cards_in(obj):
+    """Collect every exact card token (e.g. 'D-7') appearing in a structure."""
+    found = set()
+
+    def walk(o):
+        if isinstance(o, str):
+            if re.match(r"^[DSCB]-(?:[1-9]|10)$", o):
+                found.add(o)
+        elif isinstance(o, list):
+            for x in o:
+                walk(x)
+        elif isinstance(o, dict):
+            for x in o.values():
+                walk(x)
+
+    walk(obj)
+    return found
+
+
+class TestPlayerView(unittest.TestCase):
+    def test_hides_opponent_hand(self):
+        s = be.new_game(seed=42)
+        viewer = 1
+        opp_hand = set(s["hands"][1 - viewer])
+        v = be.player_view(s, viewer)
+        self.assertNotIn("hands", v)                      # no raw both-hands blob
+        self.assertEqual(v["your_hand"], s["hands"][viewer])
+        self.assertEqual(v["opponent_hand_count"], len(opp_hand))
+        # the only card tokens anywhere in the view are the viewer's own hand
+        # plus the public turned-up briscola (the table is empty at game start)
+        expected = set(s["hands"][viewer]) | {s["briscola_card"]}
+        self.assertEqual(_cards_in(v), expected)
+        self.assertFalse(opp_hand & _cards_in(v))         # no opponent card leaks
+
+    def test_hides_deck_contents(self):
+        s = be.new_game(seed=42)
+        v = be.player_view(s, 0)
+        self.assertNotIn("deck", v)
+        self.assertEqual(v["deck_count"], len(s["deck"]))
+
+    def test_public_info_visible(self):
+        s = be.new_game(seed=42)
+        v = be.player_view(s, 1)
+        self.assertEqual(v["briscola_suit"], s["briscola_suit"])
+        self.assertEqual(v["turn"], s["turn"])
+        self.assertEqual(v["captured_points"], s["captured_points"])
+        self.assertTrue(v["briscola_in_deck"])            # still in the deck at start
+
+    def test_table_cards_are_public(self):
+        s = be.new_game(seed=42)                          # Player 2 (index 1) leads
+        card = s["hands"][1][0]
+        s = be.apply_move(s, 1, card)
+        v = be.player_view(s, 0)                          # opponent sees the led card
+        self.assertEqual(v["table"], [[1, card]])
 
 
 if __name__ == "__main__":
