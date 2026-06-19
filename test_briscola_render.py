@@ -19,11 +19,24 @@ class TestCards(unittest.TestCase):
         self.assertEqual(face[5], "|    1|")           # rank bottom-right
         self.assertEqual(face[3], "| (o) |")           # Denari glyph centered
 
-    def test_face_ten_is_two_digits(self):
-        face = br.card_face("S-10")
-        self.assertEqual(face[1], "|10   |")
-        self.assertEqual(face[5], "|   10|")
-        self.assertEqual(face[3], "| -+> |")           # Spade glyph
+    def test_face_ten_numeric_mode(self):
+        old = br.SHOW_FIGURES_AS_LETTERS
+        br.SHOW_FIGURES_AS_LETTERS = False
+        try:
+            face = br.card_face("S-10")
+            self.assertEqual(face[1], "|10   |")
+            self.assertEqual(face[5], "|   10|")
+            self.assertEqual(face[3], "| -+> |")          # Spade glyph
+        finally:
+            br.SHOW_FIGURES_AS_LETTERS = old
+
+    def test_face_figures_default(self):
+        # default mode shows 10/9/8 as K/Q/J; pip cards stay numeric
+        self.assertEqual(br.card_face("S-10")[1], "|K    |")
+        self.assertEqual(br.card_face("S-10")[5], "|    K|")
+        self.assertEqual(br.card_face("C-9")[1], "|Q    |")
+        self.assertEqual(br.card_face("B-8")[1], "|J    |")
+        self.assertEqual(br.card_face("D-7")[1], "|7    |")
 
     def test_all_suit_glyphs_present(self):
         for suit, glyph in br.SUIT_GLYPH.items():
@@ -81,6 +94,25 @@ class TestBoard(unittest.TestCase):
             board = br.render_board(be.player_view(s, viewer))
             self.assertIsInstance(board, str)
             self.assertIn("YOUR HAND", board)
+
+
+class TestFigureSetting(unittest.TestCase):
+    def test_default_is_letters(self):
+        self.assertTrue(br.SHOW_FIGURES_AS_LETTERS)
+        self.assertEqual(br.rank_label(10), "K")
+        self.assertEqual(br.rank_label(9), "Q")
+        self.assertEqual(br.rank_label(8), "J")
+
+    def test_rank_label_figures(self):
+        self.assertEqual(br.rank_label(10, figures=True), "K")
+        self.assertEqual(br.rank_label(9, figures=True), "Q")
+        self.assertEqual(br.rank_label(8, figures=True), "J")
+        self.assertEqual(br.rank_label(7, figures=True), "7")   # pip unchanged
+        self.assertEqual(br.rank_label(1, figures=True), "1")
+
+    def test_rank_label_numeric(self):
+        for r in (8, 9, 10):
+            self.assertEqual(br.rank_label(r, figures=False), str(r))
 
 
 if __name__ == "__main__":

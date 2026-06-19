@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Briscola - CLI interface (v0.4.0)
+Briscola - CLI interface (v0.5.0)
 
 Async, string-passing, honor-system two-player Briscola. The whole game lives
 in a token string that players exchange manually.
 
 This file is control flow only: the menu, the paste-to-load default, identity/
 session handling, input, and the game loop. All drawing is delegated to
-briscola_render (pure view -> text); all rules to briscola_engine.
+briscola_render (pure view -> text); all rules to briscola_engine; clipboard
+auto-copy to briscola_clipboard.
 
-v0.4.0:
-- ASCII-art board (briscola_render), with the trump card shown and labeled.
-- The screen is reset each trick; a one-line header recalls the previous trick.
-- At the menu you can just paste a token to continue - no need to pick [2].
+v0.5.0:
+- Tokens are auto-copied to the clipboard when shown (Windows; write-only).
+- Figure cards display as K/Q/J by default (setting in briscola_render).
 
 Run:  python briscola_cli.py
 """
@@ -25,6 +25,7 @@ from pathlib import Path
 
 import briscola_engine as be
 import briscola_render as br
+import briscola_clipboard as clip
 
 
 # --------------------------------------------------------------------------- #
@@ -112,8 +113,11 @@ def render_screen(state, my_player):
 
 
 def print_token(state, to_player):
+    token = be.serialize(state)
     print(f"\n  --> Send this token to Player {to_player + 1}:\n")
-    print(be.serialize(state))
+    print(token)
+    if clip.copy_to_clipboard(token):
+        print("\n  (copied to clipboard - just paste it to your opponent)")
 
 
 def show_result(state):
@@ -233,7 +237,7 @@ BANNER = r"""
  |  _ \| '__| / __|/ __/ _ \ |/ _` |
  | |_) | |  | \__ \ (_| (_) | | (_| |
  |____/|_|  |_|___/\___\___/|_|\__,_|
-        string-passing edition - v0.4.0
+        string-passing edition - v0.5.0
 """
 
 

@@ -1,59 +1,63 @@
-# Briscola — string-passing edition (v0.4.0)
+# Briscola - string-passing edition (v0.5.0)
 
 A two-player, serverless [Briscola](https://en.wikipedia.org/wiki/Briscola)
 where the **entire game lives in a token string** that players exchange
-manually (chat, email, etc.). No server, no live connection — the token *is*
+manually (chat, email, etc.). No server, no live connection - the token *is*
 the game and the save file.
 
-Single game, CLI, two players, no following-suit rule.
+Single game, CLI, two players, no following-suit rule. Targeted at Windows.
 
-## What's new in v0.4.0
-- **ASCII-art board** (`briscola_render.py`): cards drawn as boxes (5 interior
-  rows) with simple glyphs for the four Italian suits —
-  `(o)` Denari · `\_/` Coppe · `-+>` Spade · `o==` Bastoni.
-- **Trump card** is always drawn and labelled (`TRUMP (suit)`).
-- **Screen resets each trick**, with a one-line header recalling the previous
-  trick: who played what and who won. Stored in the token as `last_trick`
-  (public info), so the player who led and then waited still sees the outcome.
-- **Paste-to-load is the default**: at the menu you can just paste a token to
-  continue — no need to choose `[2]` first. `[1]`, `[2]`, `[q]` still work.
-- Token format is now **version 3** (adds `last_trick`); older tokens are
-  rejected with a clear message.
+## What's new in v0.5.0
+- **Auto-copy to clipboard:** whenever the app shows a token to send, it is
+  copied to the clipboard automatically (Windows, via the built-in `clip`
+  command). This is **write-only** - the app never reads the clipboard.
+- **Figure cards display as K / Q / J by default:** 10 -> K (Re), 9 -> Q
+  (Cavallo), 8 -> J (Fante). A single setting toggles this (see below). It is a
+  display-only change; the token and notation are unchanged.
+- Token format is unchanged (still **version 3**).
+
+## The figures setting
+In `briscola_render.py`:
+
+```python
+SHOW_FIGURES_AS_LETTERS = True   # default: 10/9/8 shown as K/Q/J
+                                 # set to False for raw numbers 10/9/8
+```
 
 ## Trust model
 The opponent's hand and the deck's upcoming cards are **hidden in the
-interface** — you only see your own cards plus public information (the table,
-the trump, scores, the last trick). The renderer receives only the redacted
-`player_view`, so it structurally cannot draw hidden cards.
+interface** - you see only your own cards plus public information. The renderer
+receives only the redacted `player_view`, so it cannot draw hidden cards.
 
 This is **display privacy on the honor system, not cryptographic secrecy**: the
-token still contains the full state (the opponent's device needs it), so a
-determined player could decode one. Making the hidden cards genuinely
-un-decodable is the next milestone (see *Roadmap*).
+token carries the full state, so a determined player could decode one. Note too
+that auto-copy places the token on the clipboard, so anything that records
+clipboard history (Windows' Win+V, third-party managers) retains a copy that
+includes the hidden cards. Making the hidden cards genuinely un-decodable is the
+next milestone (see *Roadmap*).
 
 ## Version history
-- **v0.4.0** — ASCII-art board + labelled trump; per-trick screen reset with a
+- **v0.5.0** - clipboard auto-copy (Windows, write-only); figure cards shown as
+  K/Q/J by default (toggle in the renderer). Token still v3.
+- **v0.4.0** - ASCII-art board + labelled trump; per-trick screen reset with a
   last-trick header; paste-to-load default. Token v3 (adds `last_trick`).
-- **v0.3** — opponent's hand and deck contents hidden at the interface.
-- **v0.2** — automatic per-device identity, remembered per game. Token v2.
-- **v0.1** — engine + CLI, honor-system full view. Token v1.
+- **v0.3** - opponent's hand and deck contents hidden at the interface.
+- **v0.2** - automatic per-device identity, remembered per game. Token v2.
+- **v0.1** - engine + CLI, honor-system full view. Token v1.
 
 ## Files
-- `briscola_engine.py` — pure game logic (no I/O, deterministic): rules,
-  scoring, trick resolution, `player_view` redaction, token serialize/
-  deserialize.
-- `briscola_render.py` — pure presentation: `player_view` dict -> ASCII-art
-  text. No I/O, no logic, view-only.
-- `briscola_cli.py` — control flow only: menu (paste-default), card selection,
+All filenames are lowercase with underscores (no spaces).
+- `briscola_engine.py` - pure game logic (no I/O, deterministic).
+- `briscola_render.py` - pure presentation: `player_view` dict -> ASCII-art
+  text. Holds the `SHOW_FIGURES_AS_LETTERS` setting.
+- `briscola_clipboard.py` - Windows write-only clipboard auto-copy.
+- `briscola_cli.py` - control flow only: menu (paste-default), card selection,
   identity + session store, screen reset, game loop.
-- `test_briscola_engine.py` — engine + `player_view` + `last_trick` + 200
-  randomized full playthroughs.
-- `test_briscola_render.py` — card/board rendering.
-- `test_briscola_cli.py` — session store, auto-identity, menu parsing, and a
-  two-device game.
+- `test_briscola_engine.py`, `test_briscola_render.py`,
+  `test_briscola_clipboard.py`, `test_briscola_cli.py` - the test suite.
 
 ## Requirements
-Python 3.8+ — **standard library only**, nothing to `pip install` to run.
+Python 3.8+ - **standard library only**, nothing to `pip install` to run.
 
 ## Run
 ```bash
@@ -61,15 +65,15 @@ python briscola_cli.py
 ```
 
 ## How to play (the async flow)
-1. **Player 1** chooses `[1]` New game. The program records this device as
-   Player 1 and prints the opening token. (Player 2 leads first.)
-2. Player 1 sends that token to **Player 2**.
+1. **Player 1** chooses `[1]` New game. The opening token is shown (and copied
+   to the clipboard on Windows). Player 2 leads first.
+2. Player 1 pastes that token to **Player 2** (e.g. in chat).
 3. Player 2 **pastes the token straight at the menu**. The app recognises it,
-   figures out they are Player 2, shows the board (their own hand, the opponent
-   as face-down backs, the trump, the last trick), and they play.
-4. The app prints a new token to send back. Players keep pasting the latest
-   token they receive; each device remembers who it is. 61+ points wins; 60-60
-   is a *pareggio* (draw).
+   figures out they are Player 2, shows the board (own hand, the opponent as
+   face-down backs, the trump, the last trick), and they play.
+4. The app shows a new token (auto-copied) to send back. Players keep pasting
+   the latest token they receive; each device remembers who it is. 61+ points
+   wins; 60-60 is a *pareggio* (draw).
 
 > Identity is stored in `~/.briscola_sessions.json` (one entry per active game,
 > cleared at game end), so it survives quitting and relaunching between turns.
@@ -77,7 +81,7 @@ python briscola_cli.py
 
 ## Run the tests
 ```bash
-python -m unittest test_briscola_engine test_briscola_render test_briscola_cli -v
+python -m unittest discover -p "test_*.py"
 ```
 
 ## Build a portable executable
@@ -87,15 +91,15 @@ Stdlib-only, so a single-file build is straightforward with
 ```bash
 pip install pyinstaller
 pyinstaller --onefile --name briscola briscola_cli.py
-# result: dist/briscola  (or dist\briscola.exe on Windows)
+# result: dist\briscola.exe on Windows
 ```
 
 Notes:
-- The three source modules bundle into **one** executable — multiple files cost
+- All source modules bundle into **one** executable; multiple files cost
   nothing for the build.
-- "Portable" means no Python install needed on the target, built per OS (not one
-  binary for all platforms).
-- The board uses only ASCII, so it renders even on a legacy console; the
+- Clipboard auto-copy uses the built-in Windows `clip` command (no dependency);
+  on other systems it simply does nothing and the token is still shown.
+- The board is pure ASCII, so it renders even on a legacy console; the
   screen-clear is skipped automatically when output isn't an interactive
   terminal.
 

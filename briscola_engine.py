@@ -1,5 +1,5 @@
 """
-Briscola - game engine (v0.4.0)
+Briscola - game engine (v0.5.0)
 
 Pure game logic. No I/O, no printing, deterministic given its inputs.
 The full game state is a plain dict so it serializes cleanly to a token.

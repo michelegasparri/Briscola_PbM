@@ -1,5 +1,5 @@
 """
-Briscola - rendering (v0.4.0)
+Briscola - rendering (v0.5.0)
 
 Pure presentation: turns a `player_view` dict into ASCII-art text. No I/O, no
 game logic, no access to the full state - it only ever receives the redacted
@@ -25,13 +25,35 @@ SUIT_GLYPH = {
 
 LEGEND = "suits:  (o)=Denari   \\_/=Coppe   -+>=Spade   o===Bastoni"
 
+# ---- Display setting -------------------------------------------------------
+# Show the three figure cards as letters (DEFAULT) instead of their numbers:
+#   10 -> K (Re)   9 -> Q (Cavallo)   8 -> J (Fante)
+# Set to False to display the raw numbers 10 / 9 / 8 instead.
+# This affects DISPLAY ONLY -- card notation, the token, and the engine are
+# unchanged (a card is still e.g. "S-10" everywhere internally).
+SHOW_FIGURES_AS_LETTERS = True
+FIGURE_LETTERS = {10: "K", 9: "Q", 8: "J"}
+FIGURE_LEGEND = "figures:  K=10 (Re)   Q=9 (Cavallo)   J=8 (Fante)"
+
+
+def rank_label(rank, figures=None):
+    """Display label for a numeric rank, honouring the figures setting."""
+    use = SHOW_FIGURES_AS_LETTERS if figures is None else figures
+    if use and rank in FIGURE_LETTERS:
+        return FIGURE_LETTERS[rank]
+    return str(rank)
+
+
+def card_rank_label(card):
+    return rank_label(be.card_rank(card))
+
 
 # --------------------------------------------------------------------------- #
 # Card primitives - each returns a list of CARD_W-wide lines (7 lines tall)
 # --------------------------------------------------------------------------- #
 
 def card_face(card):
-    rank = card.split("-", 1)[1]            # "1".."10"
+    rank = card_rank_label(card)            # "1".."7", or "K"/"Q"/"J" (or "10"/"9"/"8")
     glyph = SUIT_GLYPH[be.card_suit(card)]
     edge = "+-----+"
     return [
@@ -80,8 +102,7 @@ def labeled(label, block):
 # --------------------------------------------------------------------------- #
 
 def _card_phrase(card):
-    rank = card.split("-", 1)[1]
-    return f"{rank} di {be.SUIT_NAMES[be.card_suit(card)]}"
+    return f"{card_rank_label(card)} di {be.SUIT_NAMES[be.card_suit(card)]}"
 
 
 def last_trick_line(view):
@@ -154,4 +175,6 @@ def render_board(view):
     lines += hand_block(view)
     lines.append("")
     lines.append(LEGEND)
+    if SHOW_FIGURES_AS_LETTERS:
+        lines.append(FIGURE_LEGEND)
     return "\n".join(lines)
