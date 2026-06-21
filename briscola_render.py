@@ -128,7 +128,7 @@ def status_line(view):
 def trump_block(view):
     label = f"TRUMP ({be.SUIT_NAMES[view['briscola_suit']]})"
     if not view["briscola_in_deck"]:
-        label += " [drawn]"
+        return [label, "(drawn)"]
     return labeled(label, card_face(view["briscola_card"]))
 
 

@@ -140,6 +140,14 @@ def play(state, my_player):
     """Play while it is this device's turn; hand off (print token) otherwise.
     Returns the state it ended on (terminal or paused)."""
     while not be.is_terminal(state):
+        # Last trick: both hands hold exactly one card each, so there is only
+        # one way the rest of the game can play out - resolve it without
+        # making either side click through a choice that isn't really one.
+        forced = be.legal_moves(state, state["turn"])
+        if len(forced) == 1:
+            state = be.apply_move(state, state["turn"], forced[0])
+            continue
+
         render_screen(state, my_player)
 
         if state["turn"] != my_player:
@@ -165,6 +173,9 @@ def play(state, my_player):
 
     render_screen(state, my_player)
     show_result(state)
+    other = 1 - my_player
+    print(f"\n  Send this final token to Player {other + 1} so they see the result too:")
+    print_token(state, other)
     return state
 
 
